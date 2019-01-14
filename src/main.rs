@@ -97,8 +97,30 @@ impl Ray {
     fn point_at_parameter(&self, t: f64) -> Vec3 { self.origin + t * self.direction}
 }
 
-fn color (r: Ray) -> Vec3{
-    let unit_direction = r.direction.unit();
+#[derive(Clone, Copy, Debug)]
+struct Sphere {
+    center: Vec3,
+    radius: f64,
+}
+
+impl Sphere {
+    fn new(center: Vec3, radius: f64) -> Sphere {Sphere{center, radius}}
+    fn hit_by_ray(&self, ray: &Ray) -> bool {
+        let oc = ray.origin - self.center;
+        let a = ray.direction.dot(&ray.direction);
+        let b = 2.0 * oc.dot(&ray.direction);
+        let c = oc.dot(&oc) - self.radius * self.radius;
+        let discriminant = b * b - 4.0 * a * c;
+        discriminant > 0.0
+    }
+}
+
+fn color (ray: Ray) -> Vec3{
+    let sphere = Sphere::new(Vec3::new(0.0, 0.0, -1.0), 0.5);
+    if sphere.hit_by_ray(&ray) {
+        return Vec3::new(1.0, 0.0, 0.0);
+    }
+    let unit_direction = ray.direction.unit();
     let t = (unit_direction.y + 1.0) * 0.5;
     Vec3::new(1.0, 1.0, 1.0) * (1.0 - t) + Vec3::new(0.5, 0.7, 1.0) * t
 }
