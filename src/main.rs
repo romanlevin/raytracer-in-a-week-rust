@@ -1,4 +1,8 @@
+extern crate rand;
+
 use std::ops::{Add, Div, Mul, Neg, Sub};
+
+use crate::rand::Rng;
 
 #[derive(Debug, PartialEq, Copy, Clone)]
 struct Vec3 {
@@ -254,8 +258,11 @@ impl Camera {
         }
     }
 
-    fn get_ray(&self, u: f64, v: f64) -> Ray{
-        Ray::new(self.origin, self.lower_left_corner + u * self.horizontal + v * self.vertical - self.origin)
+    fn get_ray(&self, u: f64, v: f64) -> Ray {
+        Ray::new(
+            self.origin,
+            self.lower_left_corner + u * self.horizontal + v * self.vertical - self.origin,
+        )
     }
 }
 
@@ -279,6 +286,8 @@ fn main() {
     // let nx = 800;
     // let ny = 400;
 
+    let ns = 100;
+
     println!("P3");
     println!("{} {}", nx, ny);
     println!("255");
@@ -292,13 +301,18 @@ fn main() {
         ],
     };
 
+    let mut rng = rand::thread_rng();
+
     for j in (0..ny).rev() {
         for i in 0..nx {
-            let u = f64::from(i) / f64::from(nx);
-            let v = f64::from(j) / f64::from(ny);
-            let ray = camera.get_ray(u, v);
-
-            let col = color(&ray, &world);
+            let mut col = Vec3::new(0.0, 0.0, 0.0);
+            for _ in 0..ns {
+                let u = (f64::from(i) + rng.gen::<f64>()) / f64::from(nx);
+                let v = (f64::from(j) + rng.gen::<f64>()) / f64::from(ny);
+                let ray = camera.get_ray(u, v);
+                col = col + color(&ray, &world);
+            }
+            col = col / f64::from(ns);
             println!("{}", col.as_color_string())
         }
     }
