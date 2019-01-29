@@ -3,6 +3,7 @@ extern crate rand;
 use std::ops::{Add, Div, Mul, Neg, Sub};
 
 use crate::rand::Rng;
+use rayon::prelude::{IndexedParallelIterator, IntoParallelIterator, ParallelIterator};
 
 #[derive(Debug, PartialEq, Copy, Clone)]
 struct Vec3 {
@@ -264,24 +265,6 @@ impl Camera {
             self.lower_left_corner + u * self.horizontal + v * self.vertical - self.origin,
         )
     }
-
-    fn multisample(
-        &self,
-        i: u32,
-        j: u32,
-        params: &ImageParams,
-        world: &HittableList,
-        rng: &mut rand::prelude::ThreadRng,
-    ) -> Vec3 {
-        let mut col = Vec3::new(0.0, 0.0, 0.0);
-        for _ in 0..params.samples {
-            let u = (f64::from(i) + rng.gen::<f64>()) / f64::from(params.width);
-            let v = (f64::from(j) + rng.gen::<f64>()) / f64::from(params.height);
-            let ray = self.get_ray(u, v);
-            col = col + color(&ray, &world);
-        }
-        col / f64::from(params.samples)
-    }
 }
 
 fn color(ray: &Ray, world: &HittableList) -> Vec3 {
@@ -298,70 +281,17 @@ fn color(ray: &Ray, world: &HittableList) -> Vec3 {
     }
 }
 
-#[derive(Debug, Clone, Copy)]
-struct ImageParams {
-    width: u32,
-    height: u32,
-    samples: u32,
-}
-
-impl ImageParams {
-    fn print_p3_header(&self) {
-        println!("P3");
-        println!("{} {}", self.width, self.height);
-        println!("255");
-    }
-}
-
-#[derive(Debug, Clone, Copy)]
-struct RenderState<'a> {
-    params: &'a ImageParams,
-    pixel_x: u32,
-    pixel_y: u32,
-}
-
-impl<'a> RenderState<'a> {
-    fn new(params: &'a ImageParams) -> Self {
-        RenderState {
-            params,
-            pixel_x: 0,
-            pixel_y: params.height - 1,
-        }
-    }
-}
-
-impl<'a> Iterator for RenderState<'a> {
-    type Item = (u32, u32);
-
-    fn next(&mut self) -> Option<Self::Item> {
-        let (x, y) = (self.pixel_x, self.pixel_y);
-        if x < self.params.width {
-            self.pixel_x += 1;
-            Some((x, y))
-        } else if y > 0 {
-            self.pixel_y -= 1;
-            self.pixel_x = 1;
-            Some((0, self.pixel_y))
-        } else {
-            None
-        }
-    }
-}
-
 fn main() {
-    let params = ImageParams {
-        width: 800,
-        height: 400,
-        samples: 100,
-    };
+    let nx = 200;
+    let ny = 100;
+    // let nx = 800;
+    // let ny = 400;
 
-    // let params = ImageParams {
-    //     width: 200,
-    //     height: 100,
-    //     samples: 100,
-    // };
+    let ns = 100;
 
-    params.print_p3_header();
+    println!("P3");
+    println!("{} {}", nx, ny);
+    println!("255");
 
     let camera = Camera::new();
 
@@ -372,11 +302,25 @@ fn main() {
         ],
     };
 
-    let mut rng = rand::thread_rng();
-    let state = RenderState::new(&params);
+    let colors: Vec<Vec3> = (0..ny)
+        .into_par_iter()
+        .rev()
+        .flat_map(|j| {
+            (0..nx).into_par_iter().map(|i| {
+                let mut rng = rand::thread_rng();
+                let mut col = Vec3::new(0.0, 0.0, 0.0);
+                for _ in 0..ns {
+                    let u = (f64::from(i) + rng.gen::<f64>()) / f64::from(nx);
+                    let v = (f64::from(j) + rng.gen::<f64>()) / f64::from(ny);
+                    let ray = camera.get_ray(u, v);
+                    col = col + color(&ray, &world);
+                }
+                col / f64::from(ns)
+            })
+        })
+        .collect();
 
-    for (i, j) in state {
-        let color = camera.multisample(i, j, &params, &world, &mut rng);
+    for color in colors {
         println!("{}", color.as_color_string())
     }
 }
