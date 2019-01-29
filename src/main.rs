@@ -41,6 +41,12 @@ impl Vec3 {
     fn unit(&self) -> Vec3 {
         *self / self.length()
     }
+    fn as_color_string(&self) -> String {
+            let ir = (255.99 * self.r()) as u8;
+            let ig = (255.99 * self.g()) as u8;
+            let ib = (255.99 * self.b()) as u8;
+            return format!("{} {} {}", ir, ig, ib)
+    }
 }
 
 impl From<(f64, f64, f64)> for Vec3 {
@@ -231,7 +237,7 @@ impl<'a> HittableList {
     }
 }
 
-fn color(ray: Ray, world: &HittableList) -> Vec3 {
+fn color(ray: &Ray, world: &HittableList) -> Vec3 {
     if let Some(hit_record) = world.hit_all(&ray, 0.0, std::f64::MAX) {
         0.5 * Vec3::new(hit_record.normal.x + 1.0, hit_record.normal.y + 1.0, hit_record.normal.z + 1.0)
     } else {
@@ -242,10 +248,10 @@ fn color(ray: Ray, world: &HittableList) -> Vec3 {
 }
 
 fn main() {
-    // let nx = 200;
-    // let ny = 100;
-    let nx = 800;
-    let ny = 400;
+    let nx = 200;
+    let ny = 100;
+    // let nx = 800;
+    // let ny = 400;
 
     println!("P3");
     println!("{} {}", nx, ny);
@@ -259,7 +265,7 @@ fn main() {
     let world = HittableList {
         list: vec![
             Hittable::Sphere(Sphere::new(Vec3::new(0.0, 0.0, -1.0), 0.5)),
-            Hittable::Sphere(Sphere::new(Vec3::new(0.0, -100.5, -1.0), -1.0)),
+            Hittable::Sphere(Sphere::new(Vec3::new(0.0, -100.5, -1.0), 100.0)),
         ]
     };
 
@@ -269,11 +275,8 @@ fn main() {
             let v = f64::from(j) / f64::from(ny);
             let ray = Ray::new(origin, lower_left_corner + u * horizontal + v * vertical);
 
-            let col = color(ray, &world);
-            let ir = (255.99 * col.r()) as u8;
-            let ig = (255.99 * col.g()) as u8;
-            let ib = (255.99 * col.b()) as u8;
-            println!("{} {} {}", ir, ig, ib);
+            let col = color(&ray, &world);
+            println!("{}", col.as_color_string())
         }
     }
 }
