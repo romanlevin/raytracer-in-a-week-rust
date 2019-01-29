@@ -42,10 +42,10 @@ impl Vec3 {
         *self / self.length()
     }
     fn as_color_string(&self) -> String {
-            let ir = (255.99 * self.r()) as u8;
-            let ig = (255.99 * self.g()) as u8;
-            let ib = (255.99 * self.b()) as u8;
-            return format!("{} {} {}", ir, ig, ib)
+        let ir = (255.99 * self.r()) as u8;
+        let ig = (255.99 * self.g()) as u8;
+        let ib = (255.99 * self.b()) as u8;
+        format!("{} {} {}", ir, ig, ib)
     }
 }
 
@@ -206,21 +206,20 @@ impl Hit for Sphere {
 }
 
 enum Hittable {
-    Sphere(Sphere)
+    Sphere(Sphere),
 }
 
 impl Hittable {
     fn hit(&self, ray: &Ray, t_min: f64, t_max: f64) -> Option<HitRecord> {
         match self {
-            Hittable::Sphere(sphere) => sphere.hit(ray, t_min, t_max)
+            Hittable::Sphere(sphere) => sphere.hit(ray, t_min, t_max),
         }
     }
 }
 
 struct HittableList {
-    list: Vec<Hittable>
+    list: Vec<Hittable>,
 }
-
 
 impl<'a> HittableList {
     fn hit_all(&self, ray: &Ray, t_min: f64, t_max: f64) -> Option<HitRecord> {
@@ -239,7 +238,11 @@ impl<'a> HittableList {
 
 fn color(ray: &Ray, world: &HittableList) -> Vec3 {
     if let Some(hit_record) = world.hit_all(&ray, 0.0, std::f64::MAX) {
-        0.5 * Vec3::new(hit_record.normal.x + 1.0, hit_record.normal.y + 1.0, hit_record.normal.z + 1.0)
+        0.5 * Vec3::new(
+            hit_record.normal.x + 1.0,
+            hit_record.normal.y + 1.0,
+            hit_record.normal.z + 1.0,
+        )
     } else {
         let unit_direction = ray.direction.unit();
         let t = (unit_direction.y + 1.0) * 0.5;
@@ -266,7 +269,7 @@ fn main() {
         list: vec![
             Hittable::Sphere(Sphere::new(Vec3::new(0.0, 0.0, -1.0), 0.5)),
             Hittable::Sphere(Sphere::new(Vec3::new(0.0, -100.5, -1.0), 100.0)),
-        ]
+        ],
     };
 
     for j in (0..ny).rev() {
