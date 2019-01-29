@@ -236,6 +236,29 @@ impl<'a> HittableList {
     }
 }
 
+#[derive(Clone, Copy, Debug)]
+struct Camera {
+    lower_left_corner: Vec3,
+    horizontal: Vec3,
+    vertical: Vec3,
+    origin: Vec3,
+}
+
+impl Camera {
+    fn new() -> Camera {
+        Camera {
+            lower_left_corner: Vec3::new(-2.0, -1.0, -1.0),
+            horizontal: Vec3::new(4.0, 0.0, 0.0),
+            vertical: Vec3::new(0.0, 2.0, 0.0),
+            origin: Vec3::new(0.0, 0.0, 0.0),
+        }
+    }
+
+    fn get_ray(&self, u: f64, v: f64) -> Ray{
+        Ray::new(self.origin, self.lower_left_corner + u * self.horizontal + v * self.vertical - self.origin)
+    }
+}
+
 fn color(ray: &Ray, world: &HittableList) -> Vec3 {
     if let Some(hit_record) = world.hit_all(&ray, 0.0, std::f64::MAX) {
         0.5 * Vec3::new(
@@ -260,10 +283,7 @@ fn main() {
     println!("{} {}", nx, ny);
     println!("255");
 
-    let lower_left_corner = Vec3::new(-2.0, -1.0, -1.0);
-    let horizontal = Vec3::new(4.0, 0.0, 0.0);
-    let vertical = Vec3::new(0.0, 2.0, 0.0);
-    let origin = Vec3::new(0.0, 0.0, 0.0);
+    let camera = Camera::new();
 
     let world = HittableList {
         list: vec![
@@ -276,7 +296,7 @@ fn main() {
         for i in 0..nx {
             let u = f64::from(i) / f64::from(nx);
             let v = f64::from(j) / f64::from(ny);
-            let ray = Ray::new(origin, lower_left_corner + u * horizontal + v * vertical);
+            let ray = camera.get_ray(u, v);
 
             let col = color(&ray, &world);
             println!("{}", col.as_color_string())
