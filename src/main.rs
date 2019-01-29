@@ -30,6 +30,7 @@ impl Vec3 {
     fn dot(&self, other: &Vec3) -> f64 {
         self.x * other.x + self.y * other.y + self.z * other.z
     }
+    #[allow(dead_code)]
     fn cross(&self, other: &Vec3) -> Vec3 {
         Vec3 {
             x: self.y * other.z - self.z * other.y,
@@ -153,34 +154,98 @@ impl Sphere {
     fn new(center: Vec3, radius: f64) -> Sphere {
         Sphere { center, radius }
     }
-    fn hit_by_ray(&self, ray: &Ray) -> f64 {
+}
+
+#[derive(Copy, Clone, Debug)]
+struct HitRecord {
+    t: f64,
+    p: Vec3,
+    normal: Vec3,
+}
+
+trait Hit {
+    fn hit(&self, ray: &Ray, t_min: f64, t_max: f64) -> Option<HitRecord>;
+}
+
+impl Hit for Sphere {
+    fn hit(&self, ray: &Ray, t_min: f64, t_max: f64) -> Option<HitRecord> {
         let oc = ray.origin - self.center;
         let a = ray.direction.dot(&ray.direction);
-        let b = 2.0 * oc.dot(&ray.direction);
+        let b = oc.dot(&ray.direction);
         let c = oc.dot(&oc) - self.radius * self.radius;
-        let discriminant = b * b - 4.0 * a * c;
+        let discriminant = b * b - a * c;
         if discriminant < 0.0 {
-            return -1.0;
+            return None;
         }
-        (-b - discriminant.sqrt()) / (2.0 * a)
+        let temp = -(b + (b * b - a * c).sqrt()) / a;
+        if temp < t_max && temp > t_min {
+            let point = ray.point_at_parameter(temp);
+            return Some(HitRecord {
+                t: temp,
+                p: point,
+                normal: (point - self.center) / self.radius,
+            });
+        }
+        let temp = (-b + (b * b - a * c).sqrt()) / a;
+        if temp < t_max && temp > t_min {
+            let point = ray.point_at_parameter(temp);
+            return Some(HitRecord {
+                t: temp,
+                p: point,
+                normal: (point - self.center) / self.radius,
+            });
+        }
+        None
     }
 }
 
-fn color(ray: Ray) -> Vec3 {
-    let sphere = Sphere::new(Vec3::new(0.0, 0.0, -1.0), 0.5);
-    let t = sphere.hit_by_ray(&ray);
-    if t > 0.0 {
-        let normal = (ray.point_at_parameter(t) - Vec3::new(0.0, 0.0, -1.0)).unit();
-        return 0.5 * Vec3::new(normal.x + 1.0, normal.y + 1.0, normal.z + 1.0);
+enum Hittable {
+    Sphere(Sphere)
+}
+
+impl Hittable {
+    fn hit(&self, ray: &Ray, t_min: f64, t_max: f64) -> Option<HitRecord> {
+        match self {
+            Hittable::Sphere(sphere) => sphere.hit(ray, t_min, t_max)
+        }
     }
-    let unit_direction = ray.direction.unit();
-    let t = (unit_direction.y + 1.0) * 0.5;
-    (1.0 - t) * Vec3::new(1.0, 1.0, 1.0) + t * Vec3::new(0.5, 0.7, 1.0)
+}
+
+struct HittableList {
+    list: Vec<Hittable>
+}
+
+
+impl<'a> HittableList {
+    fn hit_all(&self, ray: &Ray, t_min: f64, t_max: f64) -> Option<HitRecord> {
+        let mut closest_so_far = t_max;
+        let mut possible_hit_record: Option<HitRecord> = None;
+
+        self.list.iter().for_each(|hittable| {
+            if let Some(record) = hittable.hit(ray, t_min, closest_so_far) {
+                closest_so_far = record.t;
+                possible_hit_record = Some(record)
+            }
+        });
+        possible_hit_record
+    }
+}
+
+fn color(ray: Ray, world: &HittableList) -> Vec3 {
+    if let Some(hit_record) = world.hit_all(&ray, 0.0, std::f64::MAX) {
+        0.5 * Vec3::new(hit_record.normal.x + 1.0, hit_record.normal.y + 1.0, hit_record.normal.z + 1.0)
+    } else {
+        let unit_direction = ray.direction.unit();
+        let t = (unit_direction.y + 1.0) * 0.5;
+        (1.0 - t) * Vec3::new(1.0, 1.0, 1.0) + t * Vec3::new(0.5, 0.7, 1.0)
+    }
 }
 
 fn main() {
-    let nx = 200;
-    let ny = 100;
+    // let nx = 200;
+    // let ny = 100;
+    let nx = 800;
+    let ny = 400;
 
     println!("P3");
     println!("{} {}", nx, ny);
@@ -191,13 +256,20 @@ fn main() {
     let vertical = Vec3::new(0.0, 2.0, 0.0);
     let origin = Vec3::new(0.0, 0.0, 0.0);
 
+    let world = HittableList {
+        list: vec![
+            Hittable::Sphere(Sphere::new(Vec3::new(0.0, 0.0, -1.0), 0.5)),
+            Hittable::Sphere(Sphere::new(Vec3::new(0.0, -100.5, -1.0), -1.0)),
+        ]
+    };
+
     for j in (0..ny).rev() {
         for i in 0..nx {
             let u = f64::from(i) / f64::from(nx);
             let v = f64::from(j) / f64::from(ny);
             let ray = Ray::new(origin, lower_left_corner + u * horizontal + v * vertical);
 
-            let col = color(ray);
+            let col = color(ray, &world);
             let ir = (255.99 * col.r()) as u8;
             let ig = (255.99 * col.g()) as u8;
             let ib = (255.99 * col.b()) as u8;
