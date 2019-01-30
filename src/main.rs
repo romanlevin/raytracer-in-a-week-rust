@@ -1,5 +1,6 @@
 extern crate rand;
 
+use std::env;
 use std::ops::{Add, Div, Mul, Neg, Sub};
 
 use crate::rand::Rng;
@@ -281,41 +282,63 @@ fn color(ray: &Ray, world: &HittableList) -> Vec3 {
     }
 }
 
-fn main() {
-    let nx = 200;
-    let ny = 100;
-    // let nx = 800;
-    // let ny = 400;
+#[derive(Debug, Clone, Copy)]
+struct ImageParams {
+    width: u32,
+    height: u32,
+    samples: u32,
+}
 
-    let ns = 100;
+fn parse_args() -> ImageParams {
+    let args: Vec<String> = env::args().collect();
+
+    match args.len() {
+        1 => panic!("Need to pass some arguments!"),
+        3 => {
+            let parsed_args: Vec<u32> = args[1..]
+                .iter()
+                .map(|arg| arg.parse::<u32>().unwrap())
+                .collect();
+            ImageParams {
+                height: parsed_args[0],
+                width: parsed_args[0] * 2,
+                samples: parsed_args[1],
+            }
+        }
+        _ => panic!("No idea!"),
+    }
+}
+
+fn main() {
+    let image_params = parse_args();
 
     println!("P3");
-    println!("{} {}", nx, ny);
+    println!("{} {}", image_params.width, image_params.height);
     println!("255");
 
     let camera = Camera::new();
 
-    let world = HittableList {
+    let world = &HittableList {
         list: vec![
             Hittable::Sphere(Sphere::new(Vec3::new(0.0, 0.0, -1.0), 0.5)),
             Hittable::Sphere(Sphere::new(Vec3::new(0.0, -100.5, -1.0), 100.0)),
         ],
     };
 
-    let colors: Vec<Vec3> = (0..ny)
+    let colors: Vec<Vec3> = (0..image_params.height)
         .into_par_iter()
         .rev()
         .flat_map(|j| {
-            (0..nx).into_par_iter().map(|i| {
+            (0..image_params.width).into_par_iter().map(move |i| {
                 let mut rng = rand::thread_rng();
                 let mut col = Vec3::new(0.0, 0.0, 0.0);
-                for _ in 0..ns {
-                    let u = (f64::from(i) + rng.gen::<f64>()) / f64::from(nx);
-                    let v = (f64::from(j) + rng.gen::<f64>()) / f64::from(ny);
+                for _ in 0..image_params.samples {
+                    let u = (f64::from(i) + rng.gen::<f64>()) / f64::from(image_params.width);
+                    let v = (f64::from(j) + rng.gen::<f64>()) / f64::from(image_params.height);
                     let ray = camera.get_ray(u, v);
-                    col = col + color(&ray, &world);
+                    col = col + color(&ray, world);
                 }
-                col / f64::from(ns)
+                col / f64::from(image_params.samples)
             })
         })
         .collect();
