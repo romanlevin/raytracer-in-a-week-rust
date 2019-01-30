@@ -1,7 +1,7 @@
 extern crate rand;
 
 use std::env;
-use std::ops::{Add, Div, Mul, Neg, Sub};
+use std::ops::{Add, AddAssign, Div, Mul, Neg, Sub, SubAssign};
 
 use crate::rand::Rng;
 use rayon::prelude::{IndexedParallelIterator, IntoParallelIterator, ParallelIterator};
@@ -138,6 +138,26 @@ impl Div<Vec3> for f64 {
 
     fn div(self, rhs: Vec3) -> Vec3 {
         rhs / self
+    }
+}
+
+impl AddAssign for Vec3 {
+    fn add_assign(&mut self, other: Vec3) {
+        *self = Vec3 {
+            x: self.x + other.x,
+            y: self.y + other.y,
+            z: self.z + other.z,
+        };
+    }
+}
+
+impl SubAssign for Vec3 {
+    fn sub_assign(&mut self, other: Vec3) {
+        *self = Vec3 {
+            x: self.x - other.x,
+            y: self.y - other.y,
+            z: self.z - other.z,
+        };
     }
 }
 
@@ -336,7 +356,7 @@ fn main() {
                     let u = (f64::from(i) + rng.gen::<f64>()) / f64::from(image_params.width);
                     let v = (f64::from(j) + rng.gen::<f64>()) / f64::from(image_params.height);
                     let ray = camera.get_ray(u, v);
-                    col = col + color(&ray, world);
+                    col += color(&ray, world);
                 }
                 col / f64::from(image_params.samples)
             })
